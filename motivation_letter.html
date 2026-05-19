@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lidia Sinelnik — Letter of Motivation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Courier+Prime:ital@0;1&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #f5f0e8;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    cursor: default;
+  }
+
+  canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  #hint {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Courier Prime', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #a09880;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 2s;
+  }
+
+  #hint.hidden { opacity: 0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">Drag the circles · Text flows around them</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── TEXT ──────────────────────────────────────────────────────────────────────
+const PARAGRAPHS = [
+  "Letter of Motivation",
+  "International Festival Campus, August 27–30, Bochum",
+  "I am a documentary theatre director and video artist. My work draws on archival materials, diaries, letters, and ego-documents to build performances and video pieces about cultural trauma in twentieth-century Europe: political repression, wartime violence, female grief under totalitarian regimes. I have directed documentary theatre productions and produced video installations, working both within institutional contexts and in independent structures.",
+  "I am at an early stage of my career. I have shown work at smaller festivals and venues, but a structured critical environment like a festival campus is something I have not had access to yet. That is the honest reason I am applying.",
+  "The August 27–30 programme speaks directly to my practice. Warlikowski's Europa addresses the same questions I bring to my own work: how violence persists across generations, how silence and narrative both carry trauma, how bodies become the site where history settles. Watching and discussing this production inside a working group is something I could not replicate otherwise.",
+  "The workshop theme, \"Communications about Art,\" is one I genuinely need to think through. Working with traumatic historical material raises specific questions I have encountered in practice: how to speak about difficult subject matter to collaborators without causing harm in the room; how to build a productive working environment around painful content; where the line sits between formal experimentation and intellectual rigour. These are real questions for me, and I would value hearing how more experienced artists handle them.",
+  "I am also interested in the practical dimension: how directors and video artists at larger scale manage the translation from concept to execution, how they communicate with technical teams and co-creators. This is something you learn by watching from the inside.",
+  "Meeting the other participants matters to me as much as the programme. Building connections across the German and European theatre scene is something I am actively working on, and a shared working context is where real exchange tends to happen for me. A campus format gives that.",
+  "I expect four days in Bochum to be genuinely challenging. What I am hoping to take away is conversation, new contacts, and possibly the beginning of future collaboration.",
+  "Lidia Sinelnik",
+  "lida.me.lida@gmail.com · lidia.sinelnik.tilda.ws",
+];
+
+// ── FONTS ─────────────────────────────────────────────────────────────────────
+const TITLE_FONT    = "italic 500 22px 'EB Garamond', Georgia, serif";
+const SUBTITLE_FONT = "400 11px 'Courier Prime', monospace";
+const BODY_FONT     = "400 15.5px 'EB Garamond', Georgia, serif";
+const SIG_FONT      = "italic 500 18px 'EB Garamond', Georgia, serif";
+const EMAIL_FONT    = "400 11px 'Courier Prime', monospace";
+
+const COLOR_TITLE   = "#2a2218";
+const COLOR_BODY    = "#3a3228";
+const COLOR_MUTED   = "#7a6e60";
+
+// ── ORBS ──────────────────────────────────────────────────────────────────────
+let orbs = [];
+
+function makeOrbs() {
+  const W = canvas.width, H = canvas.height;
+  orbs = [
+    { x: W * 0.15, y: H * 0.28, r: 64, vx: 0.18, vy: 0.12, color: "#c8b89a", alpha: 0.55 },
+    { x: W * 0.82, y: H * 0.55, r: 90, vx: -0.14, vy: 0.09, color: "#9ab4a8", alpha: 0.45 },
+    { x: W * 0.5,  y: H * 0.82, r: 50, vx: 0.10, vy: -0.16, color: "#b8a8c8", alpha: 0.40 },
+  ];
+}
+
+// ── DRAG ──────────────────────────────────────────────────────────────────────
+let dragging = null;
+let dragOffX = 0, dragOffY = 0;
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width  / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const src = e.touches ? e.touches[0] : e;
+  return {
+    x: (src.clientX - rect.left) * scaleX,
+    y: (src.clientY - rect.top)  * scaleY,
+  };
+}
+
+canvas.addEventListener('mousedown',  startDrag);
+canvas.addEventListener('touchstart', startDrag, { passive: true });
+canvas.addEventListener('mousemove',  moveDrag);
+canvas.addEventListener('touchmove',  moveDrag, { passive: true });
+canvas.addEventListener('mouseup',    endDrag);
+canvas.addEventListener('touchend',   endDrag);
+
+function startDrag(e) {
+  const p = getPos(e);
+  for (let i = orbs.length - 1; i >= 0; i--) {
+    const o = orbs[i];
+    const dx = p.x - o.x, dy = p.y - o.y;
+    if (Math.sqrt(dx*dx + dy*dy) < o.r) {
+      dragging = i;
+      dragOffX = dx; dragOffY = dy;
+      document.getElementById('hint').classList.add('hidden');
+      break;
+    }
+  }
+}
+function moveDrag(e) {
+  if (dragging === null) return;
+  const p = getPos(e);
+  orbs[dragging].x = p.x - dragOffX;
+  orbs[dragging].y = p.y - dragOffY;
+}
+function endDrag() { dragging = null; }
+
+// ── LAYOUT ────────────────────────────────────────────────────────────────────
+const MARGIN_L = 72, MARGIN_R = 72;
+const LINE_HEIGHT_BODY = 26;
+const LINE_HEIGHT_TITLE = 34;
+const LINE_HEIGHT_SMALL = 20;
+
+function measureWord(word, font) {
+  ctx.font = font;
+  return ctx.measureText(word).width;
+}
+
+// Given y and a horizontal range [x0,x1], shrink it to avoid orbs
+function shrinkRangeForOrbs(x0, x1, y, lineH) {
+  for (const o of orbs) {
+    // check if this line band overlaps the orb vertically
+    const top = y - lineH * 0.85;
+    const bot = y + lineH * 0.15;
+    const nearestY = Math.max(top, Math.min(bot, o.y));
+    const dy = nearestY - o.y;
+    const hRadius = Math.sqrt(Math.max(0, o.r * o.r - dy * dy)) + 14;
+    if (hRadius <= 0) continue;
+    const oLeft  = o.x - hRadius;
+    const oRight = o.x + hRadius;
+    // if orb is entirely to the left or right, no overlap
+    if (oRight <= x0 || oLeft >= x1) continue;
+    // shrink whichever side loses less space
+    const lossLeft  = oRight - x0;  // shrinking left side
+    const lossRight = x1 - oLeft;   // shrinking right side
+    if (lossLeft < lossRight) {
+      x0 = Math.max(x0, oRight);
+    } else {
+      x1 = Math.min(x1, oLeft);
+    }
+  }
+  return { x0, x1 };
+}
+
+// Wrap a paragraph into lines, each with its own x/width based on orbs
+function wrapParagraph(text, font, startY, lineH, pageW) {
+  const words = text.split(' ');
+  const lines = [];
+  let i = 0;
+
+  while (i < words.length) {
+    const { x0, x1 } = shrinkRangeForOrbs(MARGIN_L, pageW - MARGIN_R, startY + lines.length * lineH, lineH);
+    const maxW = Math.max(0, x1 - x0);
+    if (maxW < 40) {
+      // No room on this line — skip it (orb is blocking)
+      lines.push({ text: '', x: x0, w: maxW, empty: true });
+      continue;
+    }
+    ctx.font = font;
+    let line = '';
+    let lineW = 0;
+
+    while (i < words.length) {
+      const word = (line ? ' ' : '') + words[i];
+      const ww = ctx.measureText(word).width;
+      if (lineW + ww > maxW && line !== '') break;
+      line += word;
+      lineW += ww;
+      i++;
+    }
+    lines.push({ text: line, x: x0, w: maxW, empty: false });
+  }
+
+  return lines;
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  if (orbs.length === 0) makeOrbs();
+}
+
+function drawBackground() {
+  // Warm paper
+  ctx.fillStyle = '#f5f0e8';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Subtle grain
+  for (let i = 0; i < 1200; i++) {
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * canvas.height;
+    const a = Math.random() * 0.025;
+    ctx.fillStyle = `rgba(80,60,30,${a})`;
+    ctx.fillRect(x, y, 1, 1);
+  }
+}
+
+function drawOrbs() {
+  for (const o of orbs) {
+    const grad = ctx.createRadialGradient(o.x - o.r*0.3, o.y - o.r*0.3, o.r*0.1, o.x, o.y, o.r);
+    grad.addColorStop(0, o.color + 'ff');
+    grad.addColorStop(1, o.color + '00');
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = o.alpha;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawText() {
+  const W = canvas.width;
+  let y = 68;
+
+  for (let pi = 0; pi < PARAGRAPHS.length; pi++) {
+    const text = PARAGRAPHS[pi];
+
+    // Title
+    if (pi === 0) {
+      const { x0 } = shrinkRangeForOrbs(MARGIN_L, W - MARGIN_R, y, LINE_HEIGHT_TITLE);
+      ctx.font = TITLE_FONT;
+      ctx.fillStyle = COLOR_TITLE;
+      ctx.fillText(text, x0, y);
+      y += LINE_HEIGHT_TITLE + 4;
+      continue;
+    }
+
+    // Subtitle / dateline
+    if (pi === 1) {
+      const { x0 } = shrinkRangeForOrbs(MARGIN_L, W - MARGIN_R, y, LINE_HEIGHT_SMALL);
+      ctx.font = SUBTITLE_FONT;
+      ctx.fillStyle = COLOR_MUTED;
+      ctx.letterSpacing = '2px';
+      ctx.fillText(text.toUpperCase(), x0, y);
+      ctx.letterSpacing = '0px';
+      y += LINE_HEIGHT_SMALL + 20;
+
+      // Thin rule
+      ctx.beginPath();
+      ctx.moveTo(MARGIN_L, y - 8);
+      ctx.lineTo(W - MARGIN_R, y - 8);
+      ctx.strokeStyle = '#c8bfaa';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      continue;
+    }
+
+    // Signature
+    if (pi === PARAGRAPHS.length - 2) {
+      y += 12;
+      const { x0 } = shrinkRangeForOrbs(MARGIN_L, W - MARGIN_R, y, LINE_HEIGHT_TITLE);
+      ctx.font = SIG_FONT;
+      ctx.fillStyle = COLOR_TITLE;
+      ctx.fillText(text, x0, y);
+      y += LINE_HEIGHT_TITLE;
+      continue;
+    }
+
+    // Email line
+    if (pi === PARAGRAPHS.length - 1) {
+      const { x0 } = shrinkRangeForOrbs(MARGIN_L, W - MARGIN_R, y, LINE_HEIGHT_SMALL);
+      ctx.font = EMAIL_FONT;
+      ctx.fillStyle = COLOR_MUTED;
+      ctx.fillText(text, x0, y);
+      y += LINE_HEIGHT_SMALL + 16;
+      continue;
+    }
+
+    // Body paragraph
+    const lines = wrapParagraph(text, BODY_FONT, y, LINE_HEIGHT_BODY, W);
+    ctx.font = BODY_FONT;
+    ctx.fillStyle = COLOR_BODY;
+    for (const line of lines) {
+      if (!line.empty && line.text) {
+        ctx.fillText(line.text, line.x, y);
+      }
+      y += LINE_HEIGHT_BODY;
+    }
+    y += 10; // paragraph gap
+  }
+}
+
+// ── ANIMATION LOOP ────────────────────────────────────────────────────────────
+let paused = false;
+canvas.addEventListener('click', e => {
+  // only toggle if not dragging
+  if (dragging === null) paused = !paused;
+});
+
+function moveOrbs() {
+  if (paused) return;
+  const W = canvas.width, H = canvas.height;
+  for (let i = 0; i < orbs.length; i++) {
+    if (dragging === i) continue;
+    const o = orbs[i];
+    o.x += o.vx;
+    o.y += o.vy;
+    if (o.x - o.r < 0 || o.x + o.r > W) o.vx *= -1;
+    if (o.y - o.r < 0 || o.y + o.r > H) o.vy *= -1;
+  }
+}
+
+// Grain seed — redraw grain rarely (every 4 frames) for perf
+let frame = 0;
+let grainCanvas = null;
+
+function buildGrain() {
+  grainCanvas = document.createElement('canvas');
+  grainCanvas.width  = canvas.width;
+  grainCanvas.height = canvas.height;
+  const gc = grainCanvas.getContext('2d');
+  for (let i = 0; i < 2000; i++) {
+    const x = Math.random() * grainCanvas.width;
+    const y = Math.random() * grainCanvas.height;
+    const a = Math.random() * 0.018;
+    gc.fillStyle = `rgba(60,40,10,${a})`;
+    gc.fillRect(x, y, 1, 1);
+  }
+}
+
+function loop() {
+  frame++;
+  moveOrbs();
+
+  // Background
+  ctx.fillStyle = '#f5f0e8';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grain (rebuild occasionally for animation feel)
+  if (!grainCanvas || frame % 8 === 0) buildGrain();
+  ctx.drawImage(grainCanvas, 0, 0);
+
+  drawOrbs();
+  drawText();
+
+  requestAnimationFrame(loop);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  resize();
+  grainCanvas = null;
+});
+
+// Wait for fonts
+document.fonts.ready.then(() => {
+  resize();
+  loop();
+});
+</script>
+</body>
+</html>
